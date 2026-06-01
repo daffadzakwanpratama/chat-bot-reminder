@@ -85,7 +85,7 @@ public class GeminiService {
                     + "}"
                     + "}";
 
-            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=" + apiKey;
+            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=" + apiKey;
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
