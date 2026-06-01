@@ -1,0 +1,34 @@
+# Target (Build folder)
+/target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDE & Editor files
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/
+bin/
+
+# Database SQLite (Jangan unggah data lokal)
+*.db
+*.db-journal
+reminder.db
+
+# Environment & Credentials (SANGAT PENTING: JANGAN UNGGAH TOKEN/API KEY)
+.env
+.env.local
+.env.*
+
+# Maven Lokal
+.maven/
+
+# Temporary / Scratch Scripts
+setup-maven.ps1
+test-gemini.ps1
+test.js
+
+# OS files
+.DS_Store
+Thumbs.db
