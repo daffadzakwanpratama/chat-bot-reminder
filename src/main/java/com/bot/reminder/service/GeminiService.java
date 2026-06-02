@@ -45,12 +45,14 @@ public class GeminiService {
 
             // Memberikan referensi waktu saat ini ke Gemini agar AI dapat menghitung tanggal "besok", "nanti malam", dll.
             String systemInstruction = "Kamu adalah asisten pengambil tugas (task extractor) yang handal. "
-                    + "Tugasmu adalah membaca pesan user dan mengekstrak deskripsi tugas serta tanggal/waktu kapan reminder harus dikirim. "
+                    + "Tugasmu adalah membaca pesan user dan mengekstrak deskripsi tugas utama, detail/catatan tambahan, serta tanggal/waktu kapan reminder harus dikirim. "
+                    + "Pisahkan antara deskripsi tugas utama (misal: 'Beli susu') dengan detail/instruksi tambahan (misal: 'pilih yang rasa coklat dan merek Ultra'). "
+                    + "Masukkan detail/instruksi tambahan tersebut ke dalam field 'notes'. Jika tidak ada detail tambahan, isi field 'notes' dengan string kosong (\"\"). "
                     + "Gunakan Waktu Sekarang sebagai referensi: " + formattedNow + " (Hari: " + dayOfWeek + "). "
                     + "Jika user berkata 'besok', hitung tanggal besok dari referensi. "
                     + "Jika user berkata 'nanti malam jam 8', hitung tanggal hari ini jam 20:00. "
                     + "Jika user berkata '2 menit lagi', tambahkan 2 menit dari referensi sekarang. "
-                    + "Bersihkan deskripsi tugas dari kata kerja bantu/perintah seperti 'ingatkan saya', 'tolong ingatkan', 'jangan lupa untuk', dll. "
+                    + "Bersihkan deskripsi tugas utama dari kata kerja bantu/perintah seperti 'ingatkan saya', 'tolong ingatkan', 'jangan lupa untuk', dll. "
                     + "Pastikan waktu reminder yang kamu berikan bernilai di masa depan dibanding referensi sekarang. "
                     + "Jika tidak ada info tugas atau waktu pengingat yang jelas, set status menjadi 'FAILED'.";
 
@@ -68,7 +70,11 @@ public class GeminiService {
                     + "    \"properties\": {"
                     + "      \"task\": {"
                     + "        \"type\": \"string\","
-                    + "        \"description\": \"Deskripsi tugas yang dibersihkan\""
+                    + "        \"description\": \"Deskripsi tugas utama yang dibersihkan\""
+                    + "      },"
+                    + "      \"notes\": {"
+                    + "        \"type\": \"string\","
+                    + "        \"description\": \"Detail, catatan, atau instruksi tambahan tentang tugas. Isi dengan string kosong '' jika tidak ada detail tambahan.\""
                     + "      },"
                     + "      \"datetime\": {"
                     + "        \"type\": \"string\","
@@ -80,7 +86,7 @@ public class GeminiService {
                     + "        \"description\": \"SUCCESS jika berhasil mem-parsing tugas dan waktu yang jelas, FAILED jika tidak\""
                     + "      }"
                     + "    },"
-                    + "    \"required\": [\"task\", \"datetime\", \"status\"]"
+                    + "    \"required\": [\"task\", \"notes\", \"datetime\", \"status\"]"
                     + "  }"
                     + "}"
                     + "}";

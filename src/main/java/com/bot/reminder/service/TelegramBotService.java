@@ -110,8 +110,11 @@ public class TelegramBotService extends TelegramLongPollingBot {
         StringBuilder response = new StringBuilder("📝 <b>Daftar Tugas Aktif Anda:</b>\n\n");
         for (int i = 0; i < tasks.size(); i++) {
             Task task = tasks.get(i);
-            response.append(i + 1).append(". <b>").append(task.getDescription()).append("</b>\n")
-                    .append("   ⏰ ").append(formatIndonesianDateTime(task.getReminderTime())).append("\n\n");
+            response.append(i + 1).append(". <b>").append(task.getDescription()).append("</b>\n");
+            if (task.getNotes() != null && !task.getNotes().trim().isEmpty()) {
+                response.append("   ℹ️ <i>Catatan: ").append(task.getNotes()).append("</i>\n");
+            }
+            response.append("   ⏰ ").append(formatIndonesianDateTime(task.getReminderTime())).append("\n\n");
         }
 
         sendMessage(chatId, response.toString());
@@ -182,16 +185,20 @@ public class TelegramBotService extends TelegramLongPollingBot {
             Task task = new Task();
             task.setChatId(chatId);
             task.setDescription(response.getTask());
+            task.setNotes(response.getNotes());
             task.setReminderTime(reminderTime);
             task.setNotified(false);
 
             taskRepository.save(task);
 
-            String successMessage = "✅ <b>Tugas berhasil ditambahkan!</b>\n\n"
-                    + "📝 <b>Tugas:</b> " + response.getTask() + "\n"
-                    + "⏰ <b>Waktu:</b> " + formatIndonesianDateTime(reminderTime);
+            StringBuilder successMessage = new StringBuilder("✅ <b>Tugas berhasil ditambahkan!</b>\n\n"
+                    + "📝 <b>Tugas:</b> " + response.getTask() + "\n");
+            if (response.getNotes() != null && !response.getNotes().trim().isEmpty()) {
+                successMessage.append("ℹ️ <b>Catatan:</b> ").append(response.getNotes()).append("\n");
+            }
+            successMessage.append("⏰ <b>Waktu:</b> ").append(formatIndonesianDateTime(reminderTime));
 
-            sendMessage(chatId, successMessage);
+            sendMessage(chatId, successMessage.toString());
         } catch (Exception e) {
             logger.error("Gagal menyimpan tugas", e);
             sendMessage(chatId, "❌ Terjadi kesalahan sistem saat menyimpan tugas Anda.");

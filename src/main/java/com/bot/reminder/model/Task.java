@@ -20,6 +20,9 @@ public class Task {
     @Column(name = "reminder_time", nullable = false)
     private LocalDateTime reminderTime;
 
+    @Column(name = "notes")
+    private String notes;
+
     @Column(name = "is_notified", nullable = false)
     private boolean notified = false;
 
@@ -31,10 +34,11 @@ public class Task {
     }
 
     // Full Constructor
-    public Task(Long id, Long chatId, String description, LocalDateTime reminderTime, boolean notified, LocalDateTime createdAt) {
+    public Task(Long id, Long chatId, String description, String notes, LocalDateTime reminderTime, boolean notified, LocalDateTime createdAt) {
         this.id = id;
         this.chatId = chatId;
         this.description = description;
+        this.notes = notes;
         this.reminderTime = reminderTime;
         this.notified = notified;
         this.createdAt = createdAt;
@@ -68,6 +72,14 @@ public class Task {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
     }
 
     public LocalDateTime getReminderTime() {

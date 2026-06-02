@@ -2,6 +2,7 @@ package com.bot.reminder.dto;
 
 public class GeminiTaskResponse {
     private String task;       // Deskripsi tugas
+    private String notes;      // Detail / catatan tambahan tugas
     private String datetime;   // Tanggal & waktu format "yyyy-MM-dd HH:mm"
     private String status;     // "SUCCESS" jika berhasil mem-parsing, "FAILED" jika tidak
 
@@ -10,8 +11,9 @@ public class GeminiTaskResponse {
     }
 
     // Full Constructor
-    public GeminiTaskResponse(String task, String datetime, String status) {
+    public GeminiTaskResponse(String task, String notes, String datetime, String status) {
         this.task = task;
+        this.notes = notes;
         this.datetime = datetime;
         this.status = status;
     }
@@ -23,6 +25,14 @@ public class GeminiTaskResponse {
 
     public void setTask(String task) {
         this.task = task;
+    }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
     }
 
     public String getDatetime() {
@@ -44,11 +54,17 @@ public class GeminiTaskResponse {
     // Manual Builder Pattern Implementation to maintain compatibility
     public static class GeminiTaskResponseBuilder {
         private String task;
+        private String notes;
         private String datetime;
         private String status;
 
         public GeminiTaskResponseBuilder task(String task) {
             this.task = task;
+            return this;
+        }
+
+        public GeminiTaskResponseBuilder notes(String notes) {
+            this.notes = notes;
             return this;
         }
 
@@ -63,7 +79,7 @@ public class GeminiTaskResponse {
         }
 
         public GeminiTaskResponse build() {
-            return new GeminiTaskResponse(task, datetime, status);
+            return new GeminiTaskResponse(task, notes, datetime, status);
         }
     }
 

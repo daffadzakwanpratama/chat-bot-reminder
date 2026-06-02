@@ -45,13 +45,18 @@ public class SchedulerService {
         for (Task task : pendingTasks) {
             try {
                 // Menyusun pesan pengingat yang indah dengan emoji
-                String reminderMessage = "🔔 <b>PENGINGAT TUGAS!</b>\n\n"
+                StringBuilder reminderMessage = new StringBuilder("🔔 <b>PENGINGAT TUGAS!</b>\n\n"
                         + "Jangan lupa untuk mengerjakan:\n"
-                        + "📝 <b>" + task.getDescription() + "</b>\n\n"
-                        + "<i>Semangat menyelesaikan tugasmu! 💪</i>";
+                        + "📝 <b>" + task.getDescription() + "</b>\n");
+
+                if (task.getNotes() != null && !task.getNotes().trim().isEmpty()) {
+                    reminderMessage.append("ℹ️ <i>Catatan: ").append(task.getNotes()).append("</i>\n");
+                }
+
+                reminderMessage.append("\n<i>Semangat menyelesaikan tugasmu! 💪</i>");
 
                 // Mengirim pesan ke chat ID Telegram user
-                telegramBotService.sendMessage(task.getChatId(), reminderMessage);
+                telegramBotService.sendMessage(task.getChatId(), reminderMessage.toString());
 
                 // Menandai tugas sebagai 'sudah diingatkan' di database
                 task.setNotified(true);
