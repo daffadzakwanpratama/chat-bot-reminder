@@ -612,6 +612,10 @@ public class TelegramBotService extends TelegramLongPollingBot {
                         oldReminder.getCustomMessage()
                 );
                 
+                task.setNotified(false);
+                if (!"TUGAS".equalsIgnoreCase(task.getCategory())) {
+                    task.setReminderTime(newReminderTime);
+                }
                 task.addReminder(newReminder);
                 taskRepository.save(task);
 

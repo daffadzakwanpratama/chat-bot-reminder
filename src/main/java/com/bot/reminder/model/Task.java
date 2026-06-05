@@ -40,7 +40,7 @@ public class Task {
     @Column(name = "deadline_time", nullable = true)
     private LocalDateTime deadlineTime;
 
-    @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<Reminder> reminders = new ArrayList<>();
 
     // Default Constructor (Required by JPA)
