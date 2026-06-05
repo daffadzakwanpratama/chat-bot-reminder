@@ -803,7 +803,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
             default:
                 try {
                     ZoneId zoneId = ZoneId.of(timezone);
-                    return zoneId.getDisplayName(java.time.format.TextStyle.SHORT, new java.util.Locale("id"));
+                    return zoneId.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.forLanguageTag("id"));
                 } catch (Exception e) {
                     return "WIB";
                 }
