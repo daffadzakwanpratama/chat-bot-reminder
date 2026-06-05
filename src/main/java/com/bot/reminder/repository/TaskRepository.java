@@ -15,4 +15,10 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
     // Mengambil semua tugas aktif yang waktu pengingatnya sudah lewat atau sama dengan waktu sekarang
     List<Task> findByNotifiedFalseAndReminderTimeLessThanEqual(LocalDateTime time);
+
+    // Mengambil semua tugas aktif milik user tertentu kecuali kategori tertentu, diurutkan berdasarkan pembuatan
+    List<Task> findByChatIdAndNotifiedFalseAndCategoryNotOrderByCreatedAtAsc(Long chatId, String excludeCategory);
+
+    // Mengambil seluruh tugas aktif milik user tertentu
+    List<Task> findByChatIdAndNotifiedFalse(Long chatId);
 }

@@ -2,6 +2,8 @@ package com.bot.reminder.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "tasks")
@@ -17,7 +19,7 @@ public class Task {
     @Column(name = "description", nullable = false)
     private String description;
 
-    @Column(name = "reminder_time", nullable = false)
+    @Column(name = "reminder_time", nullable = true)
     private LocalDateTime reminderTime;
 
     @Column(name = "notes")
@@ -29,12 +31,25 @@ public class Task {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "category", nullable = false)
+    private String category = "UMUM"; // e.g. "KULIAH", "OLAHRAGA", "IBADAH", "TUGAS", "BELAJAR", "UMUM"
+
+    @Column(name = "recurrence", nullable = false)
+    private String recurrence = "NONE"; // e.g. "NONE", "DAILY", "WEEKLY"
+
+    @Column(name = "deadline_time", nullable = true)
+    private LocalDateTime deadlineTime;
+
+    @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Reminder> reminders = new ArrayList<>();
+
     // Default Constructor (Required by JPA)
     public Task() {
     }
 
     // Full Constructor
-    public Task(Long id, Long chatId, String description, String notes, LocalDateTime reminderTime, boolean notified, LocalDateTime createdAt) {
+    public Task(Long id, Long chatId, String description, String notes, LocalDateTime reminderTime, boolean notified, 
+                LocalDateTime createdAt, String category, String recurrence, LocalDateTime deadlineTime) {
         this.id = id;
         this.chatId = chatId;
         this.description = description;
@@ -42,11 +57,20 @@ public class Task {
         this.reminderTime = reminderTime;
         this.notified = notified;
         this.createdAt = createdAt;
+        this.category = category;
+        this.recurrence = recurrence;
+        this.deadlineTime = deadlineTime;
     }
 
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
+    }
+
+    // Helper to add reminder
+    public void addReminder(Reminder reminder) {
+        reminders.add(reminder);
+        reminder.setTask(this);
     }
 
     // Getters and Setters
@@ -104,5 +128,37 @@ public class Task {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
+    }
+
+    public String getRecurrence() {
+        return recurrence;
+    }
+
+    public void setRecurrence(String recurrence) {
+        this.recurrence = recurrence;
+    }
+
+    public LocalDateTime getDeadlineTime() {
+        return deadlineTime;
+    }
+
+    public void setDeadlineTime(LocalDateTime deadlineTime) {
+        this.deadlineTime = deadlineTime;
+    }
+
+    public List<Reminder> getReminders() {
+        return reminders;
+    }
+
+    public void setReminders(List<Reminder> reminders) {
+        this.reminders = reminders;
     }
 }

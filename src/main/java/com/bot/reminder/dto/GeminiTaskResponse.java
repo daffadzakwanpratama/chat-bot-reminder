@@ -5,17 +5,21 @@ public class GeminiTaskResponse {
     private String notes;      // Detail / catatan tambahan tugas
     private String datetime;   // Tanggal & waktu format "yyyy-MM-dd HH:mm"
     private String status;     // "SUCCESS" jika berhasil mem-parsing, "FAILED" jika tidak
+    private String category;   // Kategori tugas: "KULIAH", "OLAHRAGA", "IBADAH", "TUGAS", "BELAJAR", "UMUM"
+    private String recurrence; // Pengulangan: "NONE", "DAILY", "WEEKLY"
 
     // Default Constructor
     public GeminiTaskResponse() {
     }
 
     // Full Constructor
-    public GeminiTaskResponse(String task, String notes, String datetime, String status) {
+    public GeminiTaskResponse(String task, String notes, String datetime, String status, String category, String recurrence) {
         this.task = task;
         this.notes = notes;
         this.datetime = datetime;
         this.status = status;
+        this.category = category;
+        this.recurrence = recurrence;
     }
 
     // Getters and Setters
@@ -51,12 +55,30 @@ public class GeminiTaskResponse {
         this.status = status;
     }
 
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
+    }
+
+    public String getRecurrence() {
+        return recurrence;
+    }
+
+    public void setRecurrence(String recurrence) {
+        this.recurrence = recurrence;
+    }
+
     // Manual Builder Pattern Implementation to maintain compatibility
     public static class GeminiTaskResponseBuilder {
         private String task;
         private String notes;
         private String datetime;
         private String status;
+        private String category;
+        private String recurrence;
 
         public GeminiTaskResponseBuilder task(String task) {
             this.task = task;
@@ -78,8 +100,18 @@ public class GeminiTaskResponse {
             return this;
         }
 
+        public GeminiTaskResponseBuilder category(String category) {
+            this.category = category;
+            return this;
+        }
+
+        public GeminiTaskResponseBuilder recurrence(String recurrence) {
+            this.recurrence = recurrence;
+            return this;
+        }
+
         public GeminiTaskResponse build() {
-            return new GeminiTaskResponse(task, notes, datetime, status);
+            return new GeminiTaskResponse(task, notes, datetime, status, category, recurrence);
         }
     }
 
