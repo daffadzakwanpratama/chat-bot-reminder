@@ -21,4 +21,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
     // Mengambil seluruh tugas aktif milik user tertentu
     List<Task> findByChatIdAndNotifiedFalse(Long chatId);
+
+    // Mengambil seluruh tugas yang dibuat setelah waktu tertentu untuk rekap produktivitas
+    List<Task> findByChatIdAndCreatedAtAfter(Long chatId, LocalDateTime time);
 }

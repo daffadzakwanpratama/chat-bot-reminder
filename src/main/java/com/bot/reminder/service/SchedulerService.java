@@ -26,17 +26,20 @@ public class SchedulerService {
     private final UserSettingsRepository userSettingsRepository;
     private final TelegramBotService telegramBotService;
     private final PrayerTimeService prayerTimeService;
+    private final ProductivityReportService productivityReportService;
 
     public SchedulerService(TaskRepository taskRepository,
                             ReminderRepository reminderRepository,
                             UserSettingsRepository userSettingsRepository,
                             TelegramBotService telegramBotService,
-                            PrayerTimeService prayerTimeService) {
+                            PrayerTimeService prayerTimeService,
+                            ProductivityReportService productivityReportService) {
         this.taskRepository = taskRepository;
         this.reminderRepository = reminderRepository;
         this.userSettingsRepository = userSettingsRepository;
         this.telegramBotService = telegramBotService;
         this.prayerTimeService = prayerTimeService;
+        this.productivityReportService = productivityReportService;
     }
 
     /**
@@ -49,7 +52,6 @@ public class SchedulerService {
         LocalDateTime now = LocalDateTime.now();
         log.debug("Scheduler berjalan mengecek deadline tugas pada: {}", now);
 
-        // Mengambil semua pengingat yang belum terkirim dan waktunya sudah lewat/sama dengan sekarang
         List<Reminder> pendingReminders = reminderRepository.findBySentFalseAndReminderTimeLessThanEqual(now);
 
         if (pendingReminders.isEmpty()) {
@@ -66,11 +68,9 @@ public class SchedulerService {
                 boolean includeButtons = !"IBADAH".equalsIgnoreCase(task.getCategory());
                 telegramBotService.sendReminderWithButtons(task.getChatId(), message, reminder.getId(), includeButtons);
 
-                // Menandai pengingat ini sudah terkirim
                 reminder.setSent(true);
                 reminderRepository.save(reminder);
 
-                // Handle pengulangan (Recurrence) jika ada
                 if (!"NONE".equalsIgnoreCase(task.getRecurrence())) {
                     LocalDateTime nextReminderTime = calculateNextReminderTime(reminder.getReminderTime(), task.getRecurrence());
                     Reminder newReminder = new Reminder(
@@ -83,7 +83,6 @@ public class SchedulerService {
                     log.info("Menjadwalkan ulang pengingat berulang ({}) untuk tugas ID {} pada {}",
                             task.getRecurrence(), task.getId(), nextReminderTime);
                 } else {
-                    // Cek jika tidak ada pengingat lain yang tersisa untuk tugas ini
                     List<Reminder> remainingReminders = reminderRepository.findByTask_IdAndSentFalse(task.getId());
                     if (remainingReminders.isEmpty()) {
                         task.setNotified(true);
@@ -120,6 +119,25 @@ public class SchedulerService {
                 );
             } catch (Exception e) {
                 log.error("Gagal menjadwalkan shalat harian untuk chatId: {}", settings.getChatId(), e);
+            }
+        }
+    }
+
+    /**
+     * Mengirim rekap laporan produktivitas mingguan ke seluruh user aktif.
+     * Berjalan setiap hari Minggu pukul 20:00 malam.
+     */
+    @Scheduled(cron = "0 0 20 * * SUN")
+    public void sendWeeklyProductivityReports() {
+        log.info("Memulai scheduler pengiriman laporan produktivitas mingguan...");
+        List<UserSettings> allSettings = userSettingsRepository.findAll();
+        for (UserSettings settings : allSettings) {
+            try {
+                String report = productivityReportService.generateWeeklyReport(settings.getChatId());
+                telegramBotService.sendMessage(settings.getChatId(), report);
+                log.info("Berhasil mengirim laporan produktivitas mingguan ke chatId {}", settings.getChatId());
+            } catch (Exception e) {
+                log.error("Gagal mengirim laporan produktivitas mingguan untuk chatId: {}", settings.getChatId(), e);
             }
         }
     }

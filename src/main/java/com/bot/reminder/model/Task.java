@@ -40,6 +40,12 @@ public class Task {
     @Column(name = "deadline_time", nullable = true)
     private LocalDateTime deadlineTime;
 
+    @Column(name = "is_completed", nullable = true)
+    private Boolean completed = false;
+
+    @Column(name = "completed_at", nullable = true)
+    private LocalDateTime completedAt;
+
     @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<Reminder> reminders = new ArrayList<>();
 
@@ -49,7 +55,7 @@ public class Task {
 
     // Full Constructor
     public Task(Long id, Long chatId, String description, String notes, LocalDateTime reminderTime, boolean notified, 
-                LocalDateTime createdAt, String category, String recurrence, LocalDateTime deadlineTime) {
+                LocalDateTime createdAt, String category, String recurrence, LocalDateTime deadlineTime, Boolean completed, LocalDateTime completedAt) {
         this.id = id;
         this.chatId = chatId;
         this.description = description;
@@ -60,6 +66,8 @@ public class Task {
         this.category = category;
         this.recurrence = recurrence;
         this.deadlineTime = deadlineTime;
+        this.completed = completed != null ? completed : false;
+        this.completedAt = completedAt;
     }
 
     @PrePersist
@@ -114,6 +122,7 @@ public class Task {
         this.reminderTime = reminderTime;
     }
 
+
     public boolean isNotified() {
         return notified;
     }
@@ -152,6 +161,22 @@ public class Task {
 
     public void setDeadlineTime(LocalDateTime deadlineTime) {
         this.deadlineTime = deadlineTime;
+    }
+
+    public boolean isCompleted() {
+        return completed != null ? completed : false;
+    }
+
+    public void setCompleted(boolean completed) {
+        this.completed = completed;
+    }
+
+    public LocalDateTime getCompletedAt() {
+        return completedAt;
+    }
+
+    public void setCompletedAt(LocalDateTime completedAt) {
+        this.completedAt = completedAt;
     }
 
     public List<Reminder> getReminders() {

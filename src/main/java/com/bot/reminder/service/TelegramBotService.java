@@ -45,6 +45,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
     private final GeminiService geminiService;
     private final UserSettingsRepository userSettingsRepository;
     private final PrayerTimeService prayerTimeService;
+    private final ProductivityReportService productivityReportService;
 
     public TelegramBotService(
             @Value("${TELEGRAM_BOT_TOKEN}") String botToken,
@@ -53,7 +54,8 @@ public class TelegramBotService extends TelegramLongPollingBot {
             ReminderRepository reminderRepository,
             GeminiService geminiService,
             UserSettingsRepository userSettingsRepository,
-            PrayerTimeService prayerTimeService) {
+            PrayerTimeService prayerTimeService,
+            ProductivityReportService productivityReportService) {
         super(botToken);
         this.botToken = botToken;
         this.botUsername = botUsername;
@@ -62,6 +64,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
         this.geminiService = geminiService;
         this.userSettingsRepository = userSettingsRepository;
         this.prayerTimeService = prayerTimeService;
+        this.productivityReportService = productivityReportService;
         logger.info("Telegram Bot Service diinisialisasi untuk bot: {}", botUsername);
     }
 
@@ -107,6 +110,8 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 handleSetTimezone(chatId, messageText);
             } else if (messageText.startsWith("/silentmode")) {
                 handleSilentMode(chatId, messageText);
+            } else if (messageText.startsWith("/report") || messageText.startsWith("/laporan")) {
+                handleReport(chatId);
             } else {
                 handleNaturalLanguageTask(chatId, messageText);
             }
@@ -123,17 +128,18 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 + "• <i>\"kuliah Alpro setiap senin jam 9 pagi\"</i>\n"
                 + "• <i>\"olahraga pagi besok jam 6\"</i>\n"
                 + "• <i>\"tugas Alpro deadline tanggal 10 juni jam 12 siang\"</i>\n\n"
-                + "2️⃣ <b>Lihat Jadwal Terdaftar</b>\n"
+                + "2️⃣ <b>Lihat Jadwal & Laporan</b>\n"
                 + "• Klik tombol 📋 <b>Daftar Tugas</b> : Menampilkan list tugas aktif yang Anda buat.\n"
-                + "• Klik tombol 📅 <b>Jadwal Hari Ini</b> : Menampilkan ringkasan jadwal shalat, tugas mendatang, dan reminder aktif.\n\n"
+                + "• Klik tombol 📅 <b>Jadwal Hari Ini</b> : Menampilkan ringkasan jadwal shalat, tugas mendatang, dan reminder aktif.\n"
+                + "• Ketik <code>/report</code> atau <code>/laporan</code> : Menampilkan laporan produktivitas tugas mingguan Anda.\n\n"
                 + "3️⃣ <b>Atur Lokasi Jadwal Shalat</b>\n"
                 + "Klik tombol 🕌 <b>Atur Lokasi Shalat</b> untuk mendapatkan instruksi pengaturan jadwal shalat otomatis.\n\n"
                 + "4️⃣ <b>Pengaturan Zona Waktu & Mode Senyap</b>\n"
                 + "• Ketik <code>/settimezone [WIB/WITA/WIT]</code> : Mengubah zona waktu Anda.\n"
                 + "• Ketik <code>/silentmode [on/off]</code> : Mengaktifkan/mematikan notifikasi tanpa suara.\n\n"
-                + "5️⃣ <b>Hapus Tugas</b>\n"
+                + "5️⃣ <b>Hapus / Selesaikan Tugas</b>\n"
                 + "Ketik perintah: <code>/hapus [nomor]</code>\n"
-                + "Contoh: <code>/hapus 1</code> untuk menghapus tugas nomor 1 di daftar.\n\n"
+                + "Contoh: <code>/hapus 1</code> untuk menyelesaikan/menghapus tugas nomor 1 di daftar.\n\n"
                 + "Silakan gunakan menu tombol di bawah atau ketik tugas pertama Anda! 🚀";
 
         sendMessageWithMenu(chatId, welcome);
@@ -194,9 +200,17 @@ public class TelegramBotService extends TelegramLongPollingBot {
             }
 
             Task taskToDelete = tasks.get(index);
-            taskRepository.delete(taskToDelete);
+            
+            // Soft delete untuk keperluan laporan rekap produktivitas
+            taskToDelete.setCompleted(true);
+            taskToDelete.setCompletedAt(LocalDateTime.now());
+            taskToDelete.setNotified(true);
+            for (Reminder r : taskToDelete.getReminders()) {
+                r.setSent(true);
+            }
+            taskRepository.save(taskToDelete);
 
-            sendMessage(chatId, "✅ <b>Tugas berhasil dihapus!</b>\n🗑️ <i>\"" + taskToDelete.getDescription() + "\"</i>");
+            sendMessage(chatId, "✅ <b>Tugas berhasil ditandai selesai dan dihapus!</b>\n🗑️ <i>\"" + taskToDelete.getDescription() + "\"</i>");
         } catch (NumberFormatException e) {
             sendMessage(chatId, "⚠️ Nomor tugas harus berupa angka. Contoh: <code>/hapus 1</code>");
         }
@@ -219,7 +233,6 @@ public class TelegramBotService extends TelegramLongPollingBot {
             sendMessage(chatId, "🔍 <i>Memverifikasi ID kota " + query + "...</i>");
             String cityName = prayerTimeService.getCityNameById(query);
             if (cityName != null) {
-                // Pertahankan timezone & silentmode lama jika ada
                 UserSettings settings = userSettingsRepository.findById(chatId)
                         .orElse(new UserSettings(chatId, query, cityName, LocalDateTime.now()));
                 settings.setCityId(query);
@@ -425,6 +438,17 @@ public class TelegramBotService extends TelegramLongPollingBot {
         sendMessage(chatId, "✅ <b>Mode senyap berhasil diubah!</b>\n🔕 Mode Senyap: " + (setSilent ? "<b>ON (Notifikasi Tanpa Suara)</b>" : "<b>OFF (Notifikasi Bersuara)</b>"));
     }
 
+    private void handleReport(Long chatId) {
+        sendMessage(chatId, "🤖 <i>Sedang menyusun laporan produktivitas Anda...</i>");
+        try {
+            String reportMsg = productivityReportService.generateWeeklyReport(chatId);
+            sendMessage(chatId, reportMsg);
+        } catch (Exception e) {
+            logger.error("Gagal mengirim laporan produktivitas untuk chatId: {}", chatId, e);
+            sendMessage(chatId, "❌ Gagal menyusun laporan produktivitas Anda.");
+        }
+    }
+
     private void handleNaturalLanguageTask(Long chatId, String messageText) {
         String cleanedText = messageText;
         if (messageText.toLowerCase().startsWith("/tambah")) {
@@ -433,7 +457,6 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
         sendMessage(chatId, "🤖 <i>Sedang menganalisis tugas Anda...</i>");
 
-        // Ambil waktu user sekarang untuk referensi Gemini
         String userTz = getUserTimezone(chatId);
         String tzLabel = getTimezoneLabel(userTz);
         ZonedDateTime userNowZoned = ZonedDateTime.now(ZoneId.of(userTz));
@@ -458,7 +481,6 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 datetimeStr = datetimeStr.substring(0, 16);
             }
             
-            // Waktu target dari Gemini adalah waktu lokal user
             LocalDateTime userTargetTime = LocalDateTime.parse(datetimeStr, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
 
             if (userTargetTime.isBefore(userNow)) {
@@ -466,7 +488,6 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 return;
             }
 
-            // Konversi dari waktu lokal user ke waktu server untuk disimpan ke database
             LocalDateTime targetTime = toServerTime(userTargetTime, chatId);
 
             Task task = new Task();
@@ -476,6 +497,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
             task.setCategory(response.getCategory() != null ? response.getCategory() : "UMUM");
             task.setRecurrence(response.getRecurrence() != null ? response.getRecurrence() : "NONE");
             task.setNotified(false);
+            task.setCompleted(false);
 
             int scheduledRemindersCount = 0;
 
@@ -483,10 +505,8 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 task.setDeadlineTime(targetTime);
                 task.setReminderTime(targetTime);
 
-                // Hitung reminder-reminder bergradasi di waktu lokal user, lalu konversi ke waktu server sebelum disave
                 LocalDateTime nowServer = LocalDateTime.now();
 
-                // 1. H-3
                 LocalDateTime userTH3 = userTargetTime.minusDays(3);
                 LocalDateTime serverTH3 = toServerTime(userTH3, chatId);
                 if (serverTH3.isAfter(nowServer)) {
@@ -494,11 +514,9 @@ public class TelegramBotService extends TelegramLongPollingBot {
                     scheduledRemindersCount++;
                 }
 
-                // 2. H-3 Jam
                 LocalDateTime userT3H = userTargetTime.minusHours(3);
                 LocalDateTime serverT3H = toServerTime(userT3H, chatId);
 
-                // 3. Harian
                 LocalDate startDay = (userTH3.isBefore(userNow) ? userNow : userTH3).toLocalDate();
                 LocalDate endDay = userTargetTime.toLocalDate();
 
@@ -520,7 +538,6 @@ public class TelegramBotService extends TelegramLongPollingBot {
                     }
                 }
 
-                // H-3 Jam save
                 if (serverT3H.isAfter(nowServer)) {
                     task.addReminder(new Reminder(task, serverT3H, "THREE_HOURS", null));
                     scheduledRemindersCount++;
@@ -688,6 +705,8 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 Reminder reminder = reminderOpt.get();
                 Task task = reminder.getTask();
 
+                task.setCompleted(true);
+                task.setCompletedAt(LocalDateTime.now());
                 task.setNotified(true);
                 for (Reminder r : task.getReminders()) {
                     r.setSent(true);
@@ -722,13 +741,11 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 Reminder oldReminder = reminderOpt.get();
                 Task task = oldReminder.getTask();
 
-                // Hitung waktu tunda baru berdasarkan zona waktu pengguna
                 String userTz = getUserTimezone(chatId);
                 ZoneId userZone = ZoneId.of(userTz);
                 ZonedDateTime userNowZoned = ZonedDateTime.now(userZone);
                 ZonedDateTime newReminderTimeUser = userNowZoned.plusMinutes(minutes);
                 
-                // Konversikan kembali ke waktu server untuk save
                 LocalDateTime newReminderTimeServer = newReminderTimeUser.withZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
 
                 Reminder newReminder = new Reminder(
