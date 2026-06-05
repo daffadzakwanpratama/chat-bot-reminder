@@ -30,7 +30,7 @@ public class GeminiService {
      * Mem-parsing teks pesan dari user menggunakan Gemini API
      * dan mengubahnya menjadi bentuk objek GeminiTaskResponse yang terstruktur.
      */
-    public GeminiTaskResponse parseTask(String userMessage) {
+    public GeminiTaskResponse parseTask(String userMessage, LocalDateTime userNow) {
         if (apiKey == null || apiKey.isEmpty() || apiKey.equals("YOUR_GEMINI_API_KEY_HERE")) {
             log.warn("Gemini API Key belum diatur di file .env! Ekstraksi AI dinonaktifkan. Nilai apiKey yang terbaca: '" + apiKey + "'");
             return GeminiTaskResponse.builder()
@@ -39,9 +39,8 @@ public class GeminiService {
         }
 
         try {
-            LocalDateTime now = LocalDateTime.now();
-            String formattedNow = now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-            String dayOfWeek = now.getDayOfWeek().toString();
+            String formattedNow = userNow.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            String dayOfWeek = userNow.getDayOfWeek().toString();
 
             // Memberikan referensi waktu saat ini ke Gemini agar AI dapat menghitung tanggal "besok", "nanti malam", dll.
             String systemInstruction = "Kamu adalah asisten pengambil tugas (task extractor) yang handal. "
