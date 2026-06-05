@@ -63,8 +63,8 @@ public class SchedulerService {
                 Task task = reminder.getTask();
                 String message = buildReminderMessage(reminder);
 
-                // Mengirim pesan ke chat ID Telegram user
-                telegramBotService.sendMessage(task.getChatId(), message);
+                boolean includeButtons = !"IBADAH".equalsIgnoreCase(task.getCategory());
+                telegramBotService.sendReminderWithButtons(task.getChatId(), message, reminder.getId(), includeButtons);
 
                 // Menandai pengingat ini sudah terkirim
                 reminder.setSent(true);

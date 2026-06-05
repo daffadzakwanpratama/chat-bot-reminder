@@ -5,6 +5,7 @@ import com.bot.reminder.model.Reminder;
 import com.bot.reminder.model.Task;
 import com.bot.reminder.model.UserSettings;
 import com.bot.reminder.repository.TaskRepository;
+import com.bot.reminder.repository.ReminderRepository;
 import com.bot.reminder.repository.UserSettingsRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +13,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
+import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
@@ -31,6 +39,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
     private final String botToken;
     private final String botUsername;
     private final TaskRepository taskRepository;
+    private final ReminderRepository reminderRepository;
     private final GeminiService geminiService;
     private final UserSettingsRepository userSettingsRepository;
     private final PrayerTimeService prayerTimeService;
@@ -39,6 +48,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
             @Value("${TELEGRAM_BOT_TOKEN}") String botToken,
             @Value("${TELEGRAM_BOT_USERNAME}") String botUsername,
             TaskRepository taskRepository,
+            ReminderRepository reminderRepository,
             GeminiService geminiService,
             UserSettingsRepository userSettingsRepository,
             PrayerTimeService prayerTimeService) {
@@ -46,6 +56,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
         this.botToken = botToken;
         this.botUsername = botUsername;
         this.taskRepository = taskRepository;
+        this.reminderRepository = reminderRepository;
         this.geminiService = geminiService;
         this.userSettingsRepository = userSettingsRepository;
         this.prayerTimeService = prayerTimeService;
@@ -64,6 +75,11 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
+        if (update.hasCallbackQuery()) {
+            handleCallbackQuery(update);
+            return;
+        }
+
         if (update.hasMessage() && update.getMessage().hasText()) {
             String messageText = update.getMessage().getText().trim();
             Long chatId = update.getMessage().getChatId();
@@ -71,15 +87,19 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
             logger.info("Menerima pesan dari {}: '{}'", userName, messageText);
 
-            if (messageText.startsWith("/start")) {
+            if (messageText.startsWith("/start") || "ℹ️ Panduan Bot".equalsIgnoreCase(messageText)) {
                 sendWelcomeMessage(chatId, userName);
-            } else if (messageText.startsWith("/daftar")) {
+            } else if (messageText.startsWith("/daftar") || "📋 Daftar Tugas".equalsIgnoreCase(messageText)) {
                 handleDaftar(chatId);
             } else if (messageText.startsWith("/hapus")) {
                 handleHapus(chatId, messageText);
-            } else if (messageText.startsWith("/setlokasi")) {
-                handleSetLokasi(chatId, messageText);
-            } else if (messageText.startsWith("/jadwal")) {
+            } else if (messageText.startsWith("/setlokasi") || "🕌 Atur Lokasi Shalat".equalsIgnoreCase(messageText)) {
+                if ("🕌 Atur Lokasi Shalat".equalsIgnoreCase(messageText)) {
+                    sendMessage(chatId, "📍 <b>Atur Lokasi Jadwal Shalat</b>\n\nSilakan ketik perintah berikut:\n<code>/setlokasi [nama kota]</code>\n\nContoh: <code>/setlokasi Jakarta</code>");
+                } else {
+                    handleSetLokasi(chatId, messageText);
+                }
+            } else if (messageText.startsWith("/jadwal") || "📅 Jadwal Hari Ini".equalsIgnoreCase(messageText)) {
                 handleJadwal(chatId);
             } else {
                 handleNaturalLanguageTask(chatId, messageText);
@@ -98,17 +118,16 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 + "• <i>\"olahraga pagi besok jam 6\"</i>\n"
                 + "• <i>\"tugas Alpro deadline tanggal 10 juni jam 12 siang\"</i>\n\n"
                 + "2️⃣ <b>Lihat Jadwal Terdaftar</b>\n"
-                + "• Ketik <code>/daftar</code> : Menampilkan list tugas aktif yang Anda buat.\n"
-                + "• Ketik <code>/jadwal</code> : Menampilkan ringkasan jadwal shalat, tugas mendatang, dan reminder aktif.\n\n"
+                + "• Klik tombol 📋 <b>Daftar Tugas</b> : Menampilkan list tugas aktif yang Anda buat.\n"
+                + "• Klik tombol 📅 <b>Jadwal Hari Ini</b> : Menampilkan ringkasan jadwal shalat, tugas mendatang, dan reminder aktif.\n\n"
                 + "3️⃣ <b>Atur Lokasi Jadwal Shalat</b>\n"
-                + "Ketik perintah: <code>/setlokasi [nama kota]</code>\n"
-                + "Contoh: <code>/setlokasi Jakarta</code> untuk mengaktifkan pengingat shalat otomatis.\n\n"
+                + "Klik tombol 🕌 <b>Atur Lokasi Shalat</b> untuk mendapatkan instruksi pengaturan jadwal shalat otomatis.\n\n"
                 + "4️⃣ <b>Hapus Tugas</b>\n"
                 + "Ketik perintah: <code>/hapus [nomor]</code>\n"
                 + "Contoh: <code>/hapus 1</code> untuk menghapus tugas nomor 1 di daftar.\n\n"
-                + "Silakan coba ketik tugas pertama Anda! 🚀";
+                + "Silakan gunakan menu tombol di bawah atau ketik tugas pertama Anda! 🚀";
 
-        sendMessage(chatId, welcome);
+        sendMessageWithMenu(chatId, welcome);
     }
 
     private void handleDaftar(Long chatId) {
@@ -437,6 +456,182 @@ public class TelegramBotService extends TelegramLongPollingBot {
             execute(message);
         } catch (TelegramApiException e) {
             logger.error("Gagal mengirim pesan ke chatId {}", chatId, e);
+        }
+    }
+
+    public void sendMessageWithMenu(Long chatId, String text) {
+        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
+        keyboardMarkup.setResizeKeyboard(true);
+        keyboardMarkup.setOneTimeKeyboard(false);
+        keyboardMarkup.setSelective(true);
+
+        List<KeyboardRow> keyboard = new ArrayList<>();
+
+        KeyboardRow row1 = new KeyboardRow();
+        row1.add(new KeyboardButton("📋 Daftar Tugas"));
+        row1.add(new KeyboardButton("📅 Jadwal Hari Ini"));
+
+        KeyboardRow row2 = new KeyboardRow();
+        row2.add(new KeyboardButton("🕌 Atur Lokasi Shalat"));
+        row2.add(new KeyboardButton("ℹ️ Panduan Bot"));
+
+        keyboard.add(row1);
+        keyboard.add(row2);
+        keyboardMarkup.setKeyboard(keyboard);
+
+        SendMessage message = SendMessage.builder()
+                .chatId(chatId.toString())
+                .text(text)
+                .parseMode("HTML")
+                .replyMarkup(keyboardMarkup)
+                .build();
+
+        try {
+            execute(message);
+        } catch (TelegramApiException e) {
+            logger.error("Gagal mengirim pesan dengan menu keyboard ke chatId {}", chatId, e);
+        }
+    }
+
+    public void sendReminderWithButtons(Long chatId, String text, Long reminderId, boolean includeButtons) {
+        if (!includeButtons) {
+            sendMessage(chatId, text);
+            return;
+        }
+
+        InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rowsInline = new ArrayList<>();
+
+        List<InlineKeyboardButton> row1 = new ArrayList<>();
+        InlineKeyboardButton btnDone = InlineKeyboardButton.builder()
+                .text("✅ Selesai")
+                .callbackData("done_" + reminderId)
+                .build();
+        row1.add(btnDone);
+
+        List<InlineKeyboardButton> row2 = new ArrayList<>();
+        InlineKeyboardButton btnSnooze15 = InlineKeyboardButton.builder()
+                .text("⏳ Tunda 15 Mnt")
+                .callbackData("snooze_15_" + reminderId)
+                .build();
+        InlineKeyboardButton btnSnooze60 = InlineKeyboardButton.builder()
+                .text("⏳ Tunda 1 Jam")
+                .callbackData("snooze_60_" + reminderId)
+                .build();
+        row2.add(btnSnooze15);
+        row2.add(btnSnooze60);
+
+        rowsInline.add(row1);
+        rowsInline.add(row2);
+        markupInline.setKeyboard(rowsInline);
+
+        SendMessage message = SendMessage.builder()
+                .chatId(chatId.toString())
+                .text(text)
+                .parseMode("HTML")
+                .replyMarkup(markupInline)
+                .build();
+
+        try {
+            execute(message);
+        } catch (TelegramApiException e) {
+            logger.error("Gagal mengirim reminder dengan tombol ke chatId {}", chatId, e);
+        }
+    }
+
+    private void handleCallbackQuery(Update update) {
+        String callbackData = update.getCallbackQuery().getData();
+        Long chatId = update.getCallbackQuery().getMessage().getChatId();
+        Integer messageId = update.getCallbackQuery().getMessage().getMessageId();
+        String callbackQueryId = update.getCallbackQuery().getId();
+
+        logger.info("Menerima callback query: '{}' dari chatId {}", callbackData, chatId);
+
+        AnswerCallbackQuery answer = AnswerCallbackQuery.builder()
+                .callbackQueryId(callbackQueryId)
+                .build();
+        try {
+            execute(answer);
+        } catch (TelegramApiException e) {
+            logger.error("Gagal menjawab callback query", e);
+        }
+
+        try {
+            if (callbackData.startsWith("done_")) {
+                Long reminderId = Long.parseLong(callbackData.substring(5));
+                java.util.Optional<Reminder> reminderOpt = reminderRepository.findById(reminderId);
+
+                if (reminderOpt.isEmpty()) {
+                    sendMessage(chatId, "⚠️ Pengingat tidak ditemukan atau sudah dihapus.");
+                    return;
+                }
+
+                Reminder reminder = reminderOpt.get();
+                Task task = reminder.getTask();
+
+                task.setNotified(true);
+                for (Reminder r : task.getReminders()) {
+                    r.setSent(true);
+                }
+                taskRepository.save(task);
+
+                String updatedText = "✅ <b>TUGAS SELESAI!</b>\n\n"
+                        + "📝 <b>" + task.getDescription() + "</b>\n"
+                        + "Tugas telah ditandai selesai! Terima kasih sudah menyelesaikannya. 🎉";
+
+                EditMessageText editMessage = EditMessageText.builder()
+                        .chatId(chatId.toString())
+                        .messageId(messageId)
+                        .text(updatedText)
+                        .parseMode("HTML")
+                        .replyMarkup(null)
+                        .build();
+                execute(editMessage);
+
+            } else if (callbackData.startsWith("snooze_")) {
+                String[] parts = callbackData.split("_");
+                int minutes = Integer.parseInt(parts[1]);
+                Long reminderId = Long.parseLong(parts[2]);
+
+                java.util.Optional<Reminder> reminderOpt = reminderRepository.findById(reminderId);
+
+                if (reminderOpt.isEmpty()) {
+                    sendMessage(chatId, "⚠️ Pengingat tidak ditemukan atau sudah dihapus.");
+                    return;
+                }
+
+                Reminder oldReminder = reminderOpt.get();
+                Task task = oldReminder.getTask();
+
+                LocalDateTime newReminderTime = LocalDateTime.now().plusMinutes(minutes);
+
+                Reminder newReminder = new Reminder(
+                        task,
+                        newReminderTime,
+                        oldReminder.getMessageType(),
+                        oldReminder.getCustomMessage()
+                );
+                
+                task.addReminder(newReminder);
+                taskRepository.save(task);
+
+                String updatedText = "⏳ <b>PENGINGAT DITUNDA!</b>\n\n"
+                        + "📝 <b>" + task.getDescription() + "</b>\n"
+                        + "Pengingat ditunda selama <b>" + minutes + " menit</b>.\n"
+                        + "Akan diingatkan kembali pada jam: <b>" + newReminderTime.format(DateTimeFormatter.ofPattern("HH:mm")) + " WIB</b>.";
+
+                EditMessageText editMessage = EditMessageText.builder()
+                        .chatId(chatId.toString())
+                        .messageId(messageId)
+                        .text(updatedText)
+                        .parseMode("HTML")
+                        .replyMarkup(null)
+                        .build();
+                execute(editMessage);
+            }
+        } catch (Exception e) {
+            logger.error("Gagal menangani callback query", e);
+            sendMessage(chatId, "❌ Terjadi kesalahan saat memproses aksi tombol.");
         }
     }
 
