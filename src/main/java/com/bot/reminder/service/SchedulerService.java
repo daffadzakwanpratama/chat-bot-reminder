@@ -154,7 +154,7 @@ public class SchedulerService {
         String category = task.getCategory() != null ? task.getCategory().toUpperCase() : "UMUM";
         String desc = task.getDescription();
         String notesStr = (task.getNotes() != null && !task.getNotes().trim().isEmpty())
-                ? "\nℹ️ <i>Catatan: " + task.getNotes() + "</i>"
+                ? "\n\n<blockquote>ℹ️ <b>Catatan:</b>\n<i>" + task.getNotes() + "</i></blockquote>"
                 : "";
 
         switch (category) {

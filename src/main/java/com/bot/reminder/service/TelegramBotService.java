@@ -96,8 +96,12 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 sendWelcomeMessage(chatId, userName);
             } else if (messageText.startsWith("/daftar") || "📋 Daftar Tugas".equalsIgnoreCase(messageText)) {
                 handleDaftar(chatId);
+            } else if (messageText.startsWith("/hapuscatatan")) {
+                handleHapusCatatan(chatId, messageText);
             } else if (messageText.startsWith("/hapus")) {
                 handleHapus(chatId, messageText);
+            } else if (messageText.startsWith("/catatan")) {
+                handleCatatan(chatId, messageText);
             } else if (messageText.startsWith("/setlokasi") || "🕌 Atur Lokasi Shalat".equalsIgnoreCase(messageText)) {
                 if ("🕌 Atur Lokasi Shalat".equalsIgnoreCase(messageText)) {
                     sendMessage(chatId, "📍 <b>Atur Lokasi Jadwal Shalat</b>\n\nSilakan ketik perintah berikut:\n<code>/setlokasi [nama kota]</code>\n\nContoh: <code>/setlokasi Jakarta</code>");
@@ -137,7 +141,11 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 + "4️⃣ <b>Pengaturan Zona Waktu & Mode Senyap</b>\n"
                 + "• Ketik <code>/settimezone [WIB/WITA/WIT]</code> : Mengubah zona waktu Anda.\n"
                 + "• Ketik <code>/silentmode [on/off]</code> : Mengaktifkan/mematikan notifikasi tanpa suara.\n\n"
-                + "5️⃣ <b>Hapus / Selesaikan Tugas</b>\n"
+                + "5️⃣ <b>Kelola Catatan (Notes) Tugas</b>\n"
+                + "• AI Otomatis: Catatan dapat diekstrak otomatis saat membuat tugas (contoh: <i>\"ingatkan beli susu besok jam 8 pagi catatannya rasa coklat\"</i>).\n"
+                + "• Tambah/Edit Manual: <code>/catatan [nomor] [isi catatan]</code> (contoh: <code>/catatan 1 beli rasa coklat</code>).\n"
+                + "• Hapus Catatan: <code>/hapuscatatan [nomor]</code> (contoh: <code>/hapuscatatan 1</code>).\n\n"
+                + "6️⃣ <b>Hapus / Selesaikan Tugas</b>\n"
                 + "Ketik perintah: <code>/hapus [nomor]</code>\n"
                 + "Contoh: <code>/hapus 1</code> untuk menyelesaikan/menghapus tugas nomor 1 di daftar.\n\n"
                 + "Silakan gunakan menu tombol di bawah atau ketik tugas pertama Anda! 🚀";
@@ -213,6 +221,62 @@ public class TelegramBotService extends TelegramLongPollingBot {
             sendMessage(chatId, "✅ <b>Tugas berhasil ditandai selesai dan dihapus!</b>\n🗑️ <i>\"" + taskToDelete.getDescription() + "\"</i>");
         } catch (NumberFormatException e) {
             sendMessage(chatId, "⚠️ Nomor tugas harus berupa angka. Contoh: <code>/hapus 1</code>");
+        }
+    }
+
+    private void handleCatatan(Long chatId, String messageText) {
+        String[] parts = messageText.split("\\s+", 3);
+        if (parts.length < 3) {
+            sendMessage(chatId, "⚠️ <b>Format salah.</b> Gunakan:\n<code>/catatan [nomor] [catatan baru]</code>\n\nContoh: <code>/catatan 1 Beli yang kemasan coklat</code>");
+            return;
+        }
+
+        try {
+            int index = Integer.parseInt(parts[1]) - 1;
+            List<Task> tasks = taskRepository.findByChatIdAndNotifiedFalseAndCategoryNotOrderByCreatedAtAsc(chatId, "IBADAH");
+
+            if (index < 0 || index >= tasks.size()) {
+                sendMessage(chatId, "❌ <b>Nomor tugas tidak ditemukan.</b> Silakan cek daftar tugas Anda dengan perintah <code>/daftar</code>.");
+                return;
+            }
+
+            Task task = tasks.get(index);
+            String newNote = parts[2].trim();
+            task.setNotes(newNote);
+            taskRepository.save(task);
+
+            sendMessage(chatId, "✅ <b>Catatan berhasil diperbarui!</b>\n\n"
+                    + "📝 <b>Tugas:</b> " + task.getDescription() + "\n"
+                    + "ℹ️ <b>Catatan baru:</b> " + newNote);
+        } catch (NumberFormatException e) {
+            sendMessage(chatId, "⚠️ Nomor tugas harus berupa angka. Contoh: <code>/catatan 1 Beli yang kemasan coklat</code>");
+        }
+    }
+
+    private void handleHapusCatatan(Long chatId, String messageText) {
+        String[] parts = messageText.split("\\s+");
+        if (parts.length < 2) {
+            sendMessage(chatId, "⚠️ <b>Format salah.</b> Gunakan:\n<code>/hapuscatatan [nomor]</code>\n\nContoh: <code>/hapuscatatan 1</code>");
+            return;
+        }
+
+        try {
+            int index = Integer.parseInt(parts[1]) - 1;
+            List<Task> tasks = taskRepository.findByChatIdAndNotifiedFalseAndCategoryNotOrderByCreatedAtAsc(chatId, "IBADAH");
+
+            if (index < 0 || index >= tasks.size()) {
+                sendMessage(chatId, "❌ <b>Nomor tugas tidak ditemukan.</b> Silakan cek daftar tugas Anda dengan perintah <code>/daftar</code>.");
+                return;
+            }
+
+            Task task = tasks.get(index);
+            task.setNotes("");
+            taskRepository.save(task);
+
+            sendMessage(chatId, "✅ <b>Catatan berhasil dihapus!</b>\n\n"
+                    + "📝 <b>Tugas:</b> " + task.getDescription());
+        } catch (NumberFormatException e) {
+            sendMessage(chatId, "⚠️ Nomor tugas harus berupa angka. Contoh: <code>/hapuscatatan 1</code>");
         }
     }
 
